@@ -90,13 +90,13 @@ write.table(student_trans_data, "student_trans.csv", sep="\t", row.names=FALSE, 
 class_basket <- read_baskets("student_trans.csv",sep = "\t",info =  c("sequenceID","eventID"))
 
 #load data into cspade --- used inspect() to see rules 
-student_rules <- cspade(class_basket, parameter = list(support = 0.04), control = list(verbose = TRUE))
+student_rules <- cspade(class_basket, parameter = list(support = 0.01, maxsize = 8, maxlen = 4), control = list(verbose = TRUE))
 
 #remove all ' "\ ' from item labels so that they can be subset
 itemLabels(student_rules) <- gsub('\"','',itemLabels(student_rules))
 
 # places confidence rules on data and changes class to "sequencerules" which is needed to subset by lhs or rhs sides
-student_rules_info<- ruleInduction(student_rules, confidence = 0.25,control    = list(verbose = TRUE))
+student_rules_info<- ruleInduction(student_rules, confidence = 0.25,control = list(verbose = TRUE))
 
 # chooses courses that our students have taken that are part of the rules (LHS or RHS)
 student_course_list <- as.character(unique(prior_stud_hist$course_cn))
@@ -114,8 +114,8 @@ hops <- as(lockey, "data.frame")
 ice <- as(okey, "data.frame")
     
 #makes it so that the lhs and rhs are seprate columns 
-specific_student_rules <- separate(data = specific_student_rules, col = rule, into = c("lhs", "rhs"), sep ="=>")
-specific_student_rules <- specific_student_rules[order(specific_student_rules$lift, decreasing = T), ]
+#specific_student_rules <- separate(data = specific_student_rules, col = rule, into = c("lhs", "rhs"), sep ="=>")
+#specific_student_rules <- specific_student_rules[order(specific_student_rules$lift, decreasing = T), ]
 
 if(nrow(ice) > 0){
     ice <- separate(data = ice, col = rule, into = c("lhs", "rhs"), sep ="=>")
@@ -127,14 +127,21 @@ if(nrow(hops) >0 ){
     hops <- hops[order(hops$lift, decreasing = T), ]
 } else{hops <-0}
 
-if(length(unique(ice$rhs)) > 0 & length(unique(ice$rhs))<= 5){
+if(length(unique(ice$rhs)) > 0 & length(unique(ice$rhs))<= 10){
     rec <- unique(ice$rhs)[1:length(unique(ice$rhs))]
 } else if(length(unique(ice$rhs) > 5)) {
-    rec <- unique(ice$rhs)[1:5]
+    rec <- unique(ice$rhs)[1:10]
 } else { print("Sorry no reccomendation :(")}
+rec <- unlist(str_split(rec,","))
 rec <- gsub(" <{","",rec, perl = TRUE)
 rec <- gsub("}>","",rec, perl = TRUE)
-per_corr <- length(intersect(student[student$reg_code %in% semester,11],rec))/length(rec)
+rec <- rec[!duplicated(rec)]
+rec <- if(length(rec) <= 5){rec <- rec
+} else if(length(rec)> 5){
+    rec <- rec[1:5]}
+
+
+per_corr <- length(intersect(student[student$reg_code %in% semester,11],rec))/length(student[student$reg_code %in% semester,11])
 per_corr_life <- length(intersect(student[student$reg_code %in% semester:9,11],rec))/length(rec)
 
 cat("Similar students would take these courses:")
