@@ -1,6 +1,7 @@
 #load required packages  
 require(arulesSequences)
 require(tidyr)
+library("stringr")
 
 ### Create main data sheet to perform analysis(Student Data)
 
@@ -34,7 +35,6 @@ chosen_semester <- subset(student_data, reg_code == semester)
 
 #select a random student
 id <- sample(unique(chosen_semester$student_unique_identifier),1)
-
 #extract all course history of that student
 student <- subset(student_data, student_unique_identifier == id) 
 student$course_cn <- factor(student$course_cn)
@@ -52,7 +52,7 @@ prior_stud_hist <- subset(student, student$reg_code %in% 1:(semester-1))
 attributes <- student[nrow(student), c("student_college_group_desc", "student_degree_code", "student_major_desc", "student_minor_code", "student_level_desc")]
 
 #select all student that match the attributes of that student (does not include student)
-student_selection <- subset(student_data,student_unique_identifier!= id & student_college_group_desc == attributes$student_college_group_desc & student_degree_code==attributes$student_degree_code & student_major_desc == attributes$student_major_desc & reg_code %in% 1:semester)
+student_selection <- subset(student_data,student_unique_identifier!= id & student_college_group_desc == attributes$student_college_group_desc & student_degree_code==attributes$student_degree_code & student_major_desc == attributes$student_major_desc & reg_code %in% 1:(semester-1))
 
 # create list for all courses available for the current semester 
 courses_available <- factor(unique(chosen_semester$course_cn))
@@ -105,7 +105,7 @@ student_list_sub <- which(student_course_list %in% itemLabels(student_rules))
 student_lcourse_list_sub <- which(student_course_lsemester %in% itemLabels(student_rules))
 
 #subsets the lhs so that it at least includes courses that our selected student has already taken  
-specific_student_rules <- as(subset(student_rules_info, lhs(student_rules_info) %in% student_course_list[student_list_sub]), "data.frame")
+#specific_student_rules <- as(subset(student_rules_info, lhs(student_rules_info) %in% student_course_list[student_list_sub]), "data.frame")
 
 lockey <- subset(student_rules_info, lhs(student_rules_info) %in% student_course_lsemester[student_lcourse_list_sub])
 okey <- subset(lockey, !rhs(lockey) %in% student_course_list[student_list_sub])
