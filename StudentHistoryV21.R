@@ -97,14 +97,17 @@ write.table(student_trans_data, "student_trans.csv", sep="\t", row.names=FALSE, 
 #create transacstion data - change column names to sequenceid and eventid
 class_basket <- read_baskets("student_trans.csv",sep = "\t",info =  c("sequenceID","eventID"))
 
+#reduce computing load by increasing minimum support if unique item numbers are over 50
+ifelse(nrow(class_basket@itemInfo) <= 50,supp_num <- .01,supp_num <-.02)
+
 #load data into cspade --- used inspect() to see rules 
-student_rules <- cspade(class_basket, parameter = list(support = 0.01, maxlen = 4), control = list(verbose = TRUE))
+student_rules <- cspade(class_basket, parameter = list(support = supp_num, maxlen = 4), control = list(verbose = TRUE))
 
 #remove all ' "\ ' from item labels so that they can be subset
 itemLabels(student_rules) <- gsub('\"','',itemLabels(student_rules))
 
 # places confidence rules on data and changes class to "sequencerules" which is needed to subset by lhs or rhs sides
-student_rules_info<- ruleInduction(student_rules, confidence = 0.30,control = list(verbose = TRUE))
+student_rules_info<- ruleInduction(student_rules, confidence = 0.25,control = list(verbose = TRUE))
 
 # chooses courses that our students have taken that are part of the rules (LHS or RHS)
 student_course_list <- as.character(unique(prior_stud_hist$course_cn))
@@ -116,6 +119,8 @@ student_lcourse_list_sub <- which(student_course_lsemester %in% itemLabels(stude
 
 sub1 <- subset(student_rules_info, lhs(student_rules_info) %in% student_course_lsemester[student_lcourse_list_sub] & lift > 1.2)
 sub1 <- subset(sub1, !rhs(sub1) %in% student_course_list[student_list_sub])
+if(is.element("UNIV 992: Leave of Absence",itemLabels(student_rules))){sub1 <- subset(sub1, !rhs(sub1) %in% "UNIV 992: Leave of Absence")
+} else {}
 
 srule_df <- as(sub1, "data.frame")
     
@@ -140,7 +145,11 @@ rec <- if(length(rec) <= 5){rec <- rec
 per_corr <- length(intersect(student[student$reg_code %in% semester,11],rec))/length(student[student$reg_code %in% semester,11])
 per_corr_life <- length(intersect(student[student$reg_code %in% semester:9,11],rec))/length(rec)
 
-cat("Similar students would take these courses:")
+semest_print <- c(rep(c("spring","fall"),4),"spring")
+semest_print <- c(paste(semest_print[1:2],"2010"),paste(semest_print[3:4],"2011"),
+                  paste(semest_print[5:6],"2012"),paste(semest_print[7:8],"2013"),paste(semest_print[9],"2014"))
+
+cat("These courses are recommended for student ", id," for ", semest_print[semester], ":", sep ="")
 print(rec)
 cat("These recommendations were correct for the semester:")
 print(intersect(student[student$reg_code %in% semester,11],rec))
