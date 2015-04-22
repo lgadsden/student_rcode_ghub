@@ -14,6 +14,11 @@ student_course_reg_mod$course_cn <- with(student_course_reg_mod,paste(subject_nu
 # remove all commas from courses - needed to choose predictions from rhs without errrors
 student_course_reg_mod$course_cn <- gsub(","," ",as.character(student_course_reg_mod$course_cn))
 
+# fix "MBA" "M B A" error 
+MBAfix <- which(student_course_reg_mod$student_degree_desc == "MBA")
+student_course_reg_mod$student_degree_desc <- as.character(student_course_reg_mod$student_degree_desc)
+student_course_reg_mod$student_degree_desc[MBAfix] <- "M B A"
+
 # remove all of the course information - focus on student attributes
 student_data <- student_course_reg_mod[,c(1,3,5,6,9,10,13,15,17,19,35)]
 
@@ -93,13 +98,13 @@ write.table(student_trans_data, "student_trans.csv", sep="\t", row.names=FALSE, 
 class_basket <- read_baskets("student_trans.csv",sep = "\t",info =  c("sequenceID","eventID"))
 
 #load data into cspade --- used inspect() to see rules 
-student_rules <- cspade(class_basket, parameter = list(support = 0.02, maxsize = 4, maxlen = 4), control = list(verbose = TRUE))
+student_rules <- cspade(class_basket, parameter = list(support = 0.01, maxlen = 4), control = list(verbose = TRUE))
 
 #remove all ' "\ ' from item labels so that they can be subset
 itemLabels(student_rules) <- gsub('\"','',itemLabels(student_rules))
 
 # places confidence rules on data and changes class to "sequencerules" which is needed to subset by lhs or rhs sides
-student_rules_info<- ruleInduction(student_rules, confidence = 0.3,control = list(verbose = TRUE))
+student_rules_info<- ruleInduction(student_rules, confidence = 0.30,control = list(verbose = TRUE))
 
 # chooses courses that our students have taken that are part of the rules (LHS or RHS)
 student_course_list <- as.character(unique(prior_stud_hist$course_cn))
@@ -117,7 +122,8 @@ srule_df <- as(sub1, "data.frame")
 #makes it so that the lhs and rhs are seprate columns 
 if(nrow(srule_df) > 0){
     srule_df <- separate(data = srule_df, col = rule, into = c("lhs", "rhs"), sep ="=>")
-    srule_df <- srule_df[with(srule_df, order(-support, -lift)), ]
+    srule_df$score <- srule_df$confidence * srule_df$support
+    srule_df <- srule_df[with(srule_df, order(-score)), ]
 } else{srule_df <- 0}
 
 rec <- unique(srule_df$rhs)
