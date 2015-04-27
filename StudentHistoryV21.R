@@ -37,10 +37,12 @@ student_data$reg_code <- regvalues[match(student_data$register_term_desc, regter
 ### choose semester for recommendation & a random student
 #select random semester (does not include 1st semester becuase no prior history)
 semester <- sample(3:9,1)
+semester <- 5
 chosen_semester <- subset(student_data, reg_code == semester)
 
 #select a random student
 id <- sample(unique(chosen_semester$student_unique_identifier),1)
+id <- "812965"
 #extract all course history of that student
 student <- subset(student_data, student_unique_identifier == id) 
 student$course_cn <- factor(student$course_cn)
@@ -101,7 +103,7 @@ class_basket <- read_baskets("student_trans.csv",sep = "\t",info =  c("sequenceI
 ifelse(nrow(class_basket@itemInfo) <= 50,supp_num <- .01,supp_num <-.02)
 
 #load data into cspade --- used inspect() to see rules 
-student_rules <- cspade(class_basket, parameter = list(support = supp_num, maxlen = 4), control = list(verbose = TRUE))
+student_rules <- cspade(class_basket, parameter = list(support = supp_num), control = list(verbose = TRUE))
 
 #remove all ' "\ ' from item labels so that they can be subset
 itemLabels(student_rules) <- gsub('\"','',itemLabels(student_rules))
@@ -149,30 +151,13 @@ semest_print <- c(rep(c("spring","fall"),4),"spring")
 semest_print <- c(paste(semest_print[1:2],"2010"),paste(semest_print[3:4],"2011"),
                   paste(semest_print[5:6],"2012"),paste(semest_print[7:8],"2013"),paste(semest_print[9],"2014"))
 
-cat("These courses are recommended for student ", id," for ", semest_print[semester], ":", sep ="")
+cat("\nThese courses are recommended for student ", id," for ", semest_print[semester], ":\n", sep ="")
 print(rec)
-cat("These recommendations were correct for the semester:")
+cat("\nThese recommendations were correct for the semester:")
 print(intersect(student[student$reg_code %in% semester,11],rec))
 cat("The recommendations were", per_corr, "accurate for this semester.")
-cat("The recommendations were", per_corr_life, "accurate if semesters up to Spring 2014 are included.")
-
-} else{ 
-#select all student that match the attributes of that student (does not include student)
-attributes <- subset(student, reg_code == semester)[1, c("student_college_group_desc", "student_degree_code", 
-                                                         "student_major_desc", "student_minor_code", "student_level_desc","student_type_desc")]
-#select all student that match the attributes of that student (does not include student)
-student_selection <- subset(student_data,student_unique_identifier!= id & student_college_group_desc == attributes$student_college_group_desc & student_degree_code==attributes$student_degree_code & student_type_desc == attributes$student_type_desc & reg_code %in% 1:(semester-1))
-student_selection$course_cn <- factor(student_selection$course_cn)
-arule_stud_data <- student_selection[,c(1,11)]
-arule_stud_data <- arule_stud_data[!duplicated.data.frame(arule_stud_data),]
-
-aggrData <- split(arule_stud_data[,"course_cn"], arule_stud_data[,"student_unique_identifier"])
-
-st_TrnsData <- as(aggrData, "transactions")
-
-rules = apriori(st_TrnsData, parameter=list(support=0.05, confidence=0.3))
-
-ar_rules <- subset(rules, lift > 1.2)
-ar_rules
-inspect(ar_rules)
+cat("\n\nThe recommendations were", per_corr_life, "accurate if semesters up to", semest_print[student[nrow(student),12]] , "are included.")
+cat("\nThese recommendations were correct when inlcuding", semest_print[student[nrow(student),12]], ":\n")
+print(intersect(student[,11],rec))
+} else{  print("Sorry. Student needs a course history. Reccomendations for this student can not be made for the semester")
 }
